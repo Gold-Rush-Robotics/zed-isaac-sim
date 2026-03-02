@@ -42,3 +42,4 @@ exts/sl.sensor.camera/bin/sl.sensor.camera.plugin.dll
 
 *.so
 *.gz
+exts/sl.sensor.camera/sl/sensor/camera/ogn/__ogn_files_prebuilt
