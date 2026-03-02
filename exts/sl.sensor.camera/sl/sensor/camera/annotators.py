@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import carb
+import re
 from isaacsim.core.api.world import World
 import omni.graph.core as og
 import omni.replicator.core as rep
@@ -140,8 +141,19 @@ class ZEDAnnotator:
                 cams.append(["Right", name_right])
         # Case 2: one prim (mono or stereo)
         else:
+            # Extract any prefix before "zed_camera" in the prim name
+            # e.g. "right_zed_camera_x_camera_link" → prefix="right_", camera_base="zed_camera_x"
+            prim_name = self.camera_prim_path[0].pathString.split('/')[-1]
+            prefix_match = re.match(r'^(.*?)(zed_camera_.+?)_camera_link$', prim_name)
+            if prefix_match:
+                prefix = prefix_match.group(1)
+                camera_base = prefix_match.group(2)
+            else:
+                prefix = ""
+                camera_base = "zed_camera_" + base_camera_model.lower()
+
             if self.is_stereo is True:
-                left_path = "/base_link/" + base_camera_model + "/CameraLeft"
+                left_path = f"/{prefix}{camera_base}_camera_center/{prefix}{camera_base}_left_camera_frame/CameraLeft"
             else:
                 left_path = "/base_link/" + base_camera_model + "/Camera"
 
@@ -160,7 +172,7 @@ class ZEDAnnotator:
 
             # Right Camera - Only for stereo cameras
             if self.is_stereo:
-                right_path = "/base_link/" + base_camera_model + "/CameraRight"
+                right_path = f"/{prefix}{camera_base}_camera_center/{prefix}{camera_base}_right_camera_frame/CameraRight"
                 right_full_path = self.camera_prim_path[0].pathString + right_path
                 if self.init_camera(right_full_path, self.resolution, is_4mm):
                     name_right = f"{self.camera_prim_path[0].pathString.split('/')[-1]}_right_rp"
@@ -272,7 +284,15 @@ class ZEDAnnotator:
         self.sync_node.get_attribute("outputs:rationalTimeDenominator").connect(self.sim_time.get_attribute("inputs:referenceTimeDenominator"), True)
         self.sync_node.get_attribute("outputs:rationalTimeNumerator").connect(self.sim_time.get_attribute("inputs:referenceTimeNumerator"), True)
 
-        imu_path = "/base_link/" + self.camera_model + "/Imu_Sensor"
+        prim_name = self.camera_prim_path[0].pathString.split('/')[-1]
+        prefix_match = re.match(r'^(.*?)(zed_camera_.+?)_camera_link$', prim_name)
+        if prefix_match:
+            prefix = prefix_match.group(1)
+            camera_base = prefix_match.group(2)
+        else:
+            prefix = ""
+            camera_base = "zed_camera_" + get_camera_model(self.camera_model).lower()
+        imu_path = f"/{prefix}{camera_base}_camera_center/Imu_Sensor"
         imu_full_path = self.camera_prim_path[0].pathString + imu_path
         self.imu.get_attribute("inputs:imuPrim").set(imu_full_path)
         self.zed_.get_attribute("inputs:bitrate").set(self.bitrate)
